@@ -42,6 +42,6 @@ def compute_dis_mat(num_node,location):
 
 
 if __name__ == '__main__':
-    data, num = read_tsp('./data/ch150.tsp')
+    data, num = read_tsp('./data/ch20.tsp')
     dis_mat = compute_dis_mat(num,data)
-    print(dis_mat)
+    print(data)

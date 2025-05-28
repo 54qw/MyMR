@@ -1,11 +1,12 @@
 import math
 import random
 import numpy as np
+from matplotlib import pyplot as plt
 import utils
 
 class GA:
     def __init__(self, robot_num, start_index, filename, max_gen, distance_weight, balance_weight,):
-        self.population_size = 30   #种群规模大小
+        self.population_size = 100   #种群规模大小
         self.population = []    #种群
         self.robot_num = robot_num  #机器人数量
         self.start_index = start_index  #出发点序号取值[1，点数]
@@ -27,6 +28,7 @@ class GA:
         self.nodes_data, self.node_num = utils.read_tsp(self.filename)
         self.chrom_len = self.robot_num + self.node_num - 2  # 染色体长度=（巡检点数量-1）+（机器人数量-1），由编码方式决定
         self.dummy_points = [x for x in range(self.node_num + 1, self.node_num + self.robot_num)]  # 虚点
+        self.dis_mat = utils.compute_dis_mat(self.node_num, self.nodes_data.copy())
 
         self.cur_pop_best_chrom = []  # 当代的最优个体
         self.cur_pop_best_chrom_fit = 0  # 当代的最优个体的适应度
@@ -94,20 +96,20 @@ class GA:
             else:
                 one_route.append(x)
         all_routes.append(one_route)
-        all_routes = [[self.start_index] + route + [self.start_index] for route in all_routes if route]
+        all_routes = [[self.start_index] + route + [self.start_index] for route in all_routes]
 
         routes_dis = [] # 每条路线总距离组成的列表
         # 获取各点之间的距离矩阵
-        dis_mat = utils.compute_dis_mat(self.node_num, self.nodes_data.copy())
+        # dis_mat = utils.compute_dis_mat(self.node_num, self.nodes_data.copy())
         for r in all_routes:
             distance = 0
             if len(r) <= 2: # 一个机器人不出门
-                distance = np.Inf
+                distance = 999999
                 routes_dis.append(distance)
             else:
                 r_len = len(r)
                 for i in range(r_len-1):
-                    distance += dis_mat[r[i]-1][r[i+1]-1]
+                    distance += self.dis_mat[r[i]-1][r[i+1]-1]
                 routes_dis.append(distance)
         return all_routes, routes_dis
 
@@ -129,10 +131,13 @@ class GA:
         min_dis = min(routes_dis)
         if max_dis == 0:
             balance = 0
+        elif min_dis == 0:
+            balance = np.Inf
         else:
             balance = (max_dis - min_dis) / max_dis
         obj = self.distance_weight * sum_dis + self.balance_weight * balance
-        fitness = math.exp(1.0 / obj)
+        # fitness = math.exp(1.0 / obj)
+        fitness = 1 / max_dis
         return fitness
 
     def compute_pop_fitness(self, population):
@@ -421,8 +426,8 @@ class GA:
                     fruits.append(child_chrom1)
                 elif fitness2 >= fitness1 and child_chrom2 not in fruits:
                     fruits.append(child_chrom2)
-                print(num)
-                num += 1
+                # print(num)
+                # num += 1
             pop_new = fruits
 
             # 新一代有关参数更新
@@ -460,7 +465,7 @@ class GA:
             # 记录每次迭代过程中全局最优个体的总距离
             self.all_best_dist_sum.append(self.best_dis_sum)
 
-            if i >= 0:
+            if i % 50 == 0:
             #if self.gen_count >= 0:
                 print("经过%d次迭代" % i)
                 print("全局最优解距离为：%f，全局最优解长度为%d" % (self.best_dis_sum, len(self.best_chrom)))
@@ -477,27 +482,41 @@ class GA:
             # 更新种群
             self.population = pop_new
 
+    def plot_routes(self):
+        plt.figure(figsize=(8, 8))
+        colors = ["red", "blue", "green", "purple", "orange", "cyan"]
+        # 绘制城市点
+        plt.scatter(self.nodes_data[:, 1], self.nodes_data[:, 2], c="black", marker="o", label="巡检点")
+        # 标注城市编号
+        for i, node in enumerate(self.nodes_data):
+            plt.text(node[1], node[2], f"{i+1}", fontsize=9, ha="right")
+        # 绘制每个旅行商的路径
+        for i, route in enumerate(self.best_path):
+            route = [x - 1 for x in route]
+            path_coords = self.nodes_data[route]
+            color = colors[i % len(colors)]
+            plt.plot(
+                path_coords[:, 1], path_coords[:, 2],
+                marker="o", linestyle="-", color=color,
+                label=f"旅行商 {i + 1}"
+            )
 
+        # 标注起点
+        plt.scatter(self.nodes_data[0][1], self.nodes_data[0][2], c="red", s=100, label="起点")
+        title = '路线'
+        plt.title(title)
+        plt.xlabel("X 坐标")
+        plt.ylabel("Y 坐标")
+        plt.legend()
+        plt.grid(True)
+        plt.show()
 
 
 if __name__ == '__main__':
-    ga_obj = GA(robot_num=3, start_index=1, filename='./data/ch150.tsp',
-                max_gen=1000, distance_weight=1, balance_weight=3600)
+    ga_obj = GA(robot_num=5, start_index=1, filename='./data/ch150.tsp',
+                max_gen=2000, distance_weight=1, balance_weight=3000)
     ga_obj.ga_run()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    ga_obj.plot_routes()
 
 
 
